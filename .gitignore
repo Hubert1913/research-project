@@ -1,0 +1,5 @@
+venv
+bsc_project_set.csv
+variable_dictionary.xlsx
+.idea
+__pycache__
