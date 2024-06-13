@@ -19,8 +19,8 @@ def get_training_set(d, mu_0, mu_1, propensity, count):
 
     w = list(map(lambda a: np.random.binomial(n=1, p=(propensity(a))), x))
 
-    # y = list(map(lambda a: (mu_0(a[0]) if a[1] == 0 else mu_1(a[0])) + np.random.normal(loc=0, scale=1), zip(x, w)))
-    y = list(map(lambda a: (mu_0(a[0]) if a[1] == 0 else mu_1(a[0])), zip(x, w)))
+    y = list(map(lambda a: (mu_0(a[0]) if a[1] == 0 else mu_1(a[0])) + np.random.normal(loc=0, scale=1), zip(x, w)))
+    # y = list(map(lambda a: (mu_0(a[0]) if a[1] == 0 else mu_1(a[0])), zip(x, w)))
 
     ret = {"X": x, "W": w, "Y": y}
 
@@ -50,10 +50,10 @@ def get_test_set(d, mu_0, mu_1, propensity, count):
 
     x = list(map(lambda a: list(a), np.random.normal(loc=0, scale=1, size=(count, d))))
     w = list(map(lambda a: np.random.binomial(n=1, p=(propensity(a))), x))
-    # y0 = list(map(lambda a: mu_0(a) + np.random.normal(loc=0, scale=1), x))
-    # y1 = list(map(lambda a: mu_1(a) + np.random.normal(loc=0, scale=1), x))
-    y0 = list(map(lambda a: mu_0(a), x))
-    y1 = list(map(lambda a: mu_1(a), x))
+    y0 = list(map(lambda a: mu_0(a) + np.random.normal(loc=0, scale=1), x))
+    y1 = list(map(lambda a: mu_1(a) + np.random.normal(loc=0, scale=1), x))
+    # y0 = list(map(lambda a: mu_0(a), x))
+    # y1 = list(map(lambda a: mu_1(a), x))
     y = list(map(lambda a: a[0] if a[2] == 0 else a[1], zip(y0, y1, w)))
 
     ret = {"X": x, "W": w, "Y": y, "Y0": y0, "Y1": y1}
