@@ -1,68 +1,68 @@
 import pandas as pd
 import pickle
-from sklearn.impute import KNNImputer
 
-# SEE BELOW FOR THE USE CASES
+# SEE BELOW FOR USE EXAMPLES
 
-def predict_ite_causal_forest(forest_model, data):
+
+def predict_ite_causal_forest(forest_model, data, standard_scaler, knn_imputer):
     """
     Predicts ITEs using causal forest
     :param forest_model: the causal forest model, created using pickle.load()
     :param data: pandas dataframe with RCT data, created by for example pandas.read_csv("filename", index_col=0)
+    :param standard_scaler: StandardScaler object, to be passed to the preprocessing function
+    :param knn_imputer: KNNImputer object, to be passed to the preprocessing function
     :return: Predicted ITEs
     """
 
-    imputed_data = preprocess_data(data)
+    imputed_data = preprocess_data(data, standard_scaler, knn_imputer)
 
     return forest_model.predict(X=imputed_data)
 
 
-def predict_ite_s_learner(s_learner_model, data):
+def predict_ite_s_learner(s_learner_model, data, standard_scaler, knn_imputer):
     """
     Predicts ITEs using S-learner
     :param s_learner_model: the S-learner model, created using pickle.load()
     :param data: pandas dataframe with RCT data, created by for example pandas.read_csv("filename", index_col=0)
+    :param standard_scaler: StandardScaler object, to be passed to the preprocessing function
+    :param knn_imputer: KNNImputer object, to be passed to the preprocessing function
     :return: Predicted ITEs
     """
 
-    imputed_data = preprocess_data(data)
+    imputed_data = preprocess_data(data, standard_scaler, knn_imputer)
 
     return s_learner_model.predict(imputed_data.assign(**{"W": 1})) - s_learner_model.predict(imputed_data.assign(**{"W": 0}))
 
 
-def predict_ite_t_learner(t_learner_model_0, t_learner_model_1, data):
+def predict_ite_t_learner(t_learner_model_0, t_learner_model_1, data, standard_scaler, knn_imputer):
     """
     Predicts ITEs using S-learner
     :param t_learner_model_0: the T-learner base model for Y_0, created using pickle.load()
     :param t_learner_model_1: the T-learner base model for Y_1, created using pickle.load()
     :param data: pandas dataframe with RCT data, created by for example pandas.read_csv("filename", index_col=0)
+    :param standard_scaler: StandardScaler object, to be passed to the preprocessing function
+    :param knn_imputer: KNNImputer object, to be passed to the preprocessing function
     :return: Predicted ITEs
     """
 
-    imputed_data = preprocess_data(data)
+    imputed_data = preprocess_data(data, standard_scaler, knn_imputer)
 
     return t_learner_model_1.predict(imputed_data) - t_learner_model_0.predict(imputed_data)
 
 
-def preprocess_data(data):
-    # Drop unnecessary columns and turn everything into numbers
-    xs = data.drop(columns=["peep_regime", "mort_28", "id"])
-    xs.loc[xs["sex"] == "M", "sex"] = 0
-    xs.loc[xs["sex"] == "F", "sex"] = 1
-    xs_columns = xs.columns
-
-    # normalise data
-    norm_xs = (xs - xs.mean()) / xs.std()
-
-    # Impute missing values
-    imputer = KNNImputer()
-    imp_xs = imputer.fit_transform(norm_xs)
-    imp_xs = pd.DataFrame(data=imp_xs, columns=xs_columns)
-
+def preprocess_data(data, standard_scaler, knn_imputer):
     # Select corresponding columns, in the correct order
     selected_columns = ["age", "weight", "pf_ratio", "po2", "pco2", "driving_pressure", "fio2", "minute_volume",
                         "plateau_pressure"]
-    imp_xs = imp_xs[selected_columns]
+    xs = data[selected_columns]
+    xs_columns = xs.columns
+
+    # normalise data
+    norm_xs = standard_scaler.transform(X=xs)
+
+    # Impute missing values
+    imp_xs = knn_imputer.transform(X=norm_xs)
+    imp_xs = pd.DataFrame(data=imp_xs, columns=xs_columns)
 
     return imp_xs
 
@@ -82,14 +82,18 @@ with open("t_learner_model_0.pkl", "rb") as f:
 with open("t_learner_model_1.pkl", "rb") as f:
     t_learner_1 = pickle.load(f)
 
+with open("knn_imputer.pkl", "rb") as f:
+    knn_imputer = pickle.load(f)
 
-# DATA: I'm assuming it is also in a .csv file, with exactly the same columns (also for treatment and outcome)
-# If not, then some lines might have to be edited, for example dropping columns on line 49
-# All preprocessing steps (normalisation, imputation
+with open("standard_scaler.pkl", "rb") as f:
+    standard_scaler = pickle.load(f)
+
+
+# DATA: I'm assuming it is also in a .csv file, with exactly the same columns
 # The functions above take a dataframe as input, so we can read the file as
 data = pd.read_csv("filename.csv", index_col=0)
 
 # For such loaded models and data we can call:
-s_learner_ite = predict_ite_s_learner(s_learner, data)
-t_learner_ite = predict_ite_t_learner(t_learner_0, t_learner_1, data)
-causal_forest_ite = predict_ite_causal_forest(causal_forest, data)
+s_learner_ite = predict_ite_s_learner(s_learner, data, standard_scaler, knn_imputer)
+t_learner_ite = predict_ite_t_learner(t_learner_0, t_learner_1, data, standard_scaler, knn_imputer)
+causal_forest_ite = predict_ite_causal_forest(causal_forest, data, standard_scaler, knn_imputer)
