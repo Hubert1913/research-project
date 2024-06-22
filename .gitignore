@@ -1,5 +1,6 @@
 venv
 bsc_project_set.csv
 variable_dictionary.xlsx
+rct_predictions.csv
 .idea
 __pycache__
