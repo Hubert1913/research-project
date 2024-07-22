@@ -1,10 +1,7 @@
 import numpy as np
 import pandas as pd
-import random
 import simulate_data
 from matplotlib import pyplot as plt
-from scipy.stats import beta
-from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.metrics import mean_squared_error
@@ -24,6 +21,14 @@ def elast(data, y, t):
 
 
 def train_and_evaluate(train, test, train_x_t_0_head, train_x_t_1_head):
+    """
+    Trains models using the train data and calculates MSE of estimated CATE for test data
+    :param train: data for training models
+    :param test: data for performing tests
+    :param train_x_t_0_head: a single untreated data point in case all samples in 'train' were treated
+    :param train_x_t_1_head: a single treated data point in case all samples in 'train' were untreated
+    :return: MSEs of estimated CATE for S-learner, T-learner, causal forest and KNN
+    """
 
     train_x = pd.DataFrame(train["X"].tolist(), index=train.index)
     train_x.columns = train_x.columns.astype(str)
@@ -53,7 +58,6 @@ def train_and_evaluate(train, test, train_x_t_0_head, train_x_t_1_head):
     test_x.columns = test_x.columns.astype(str)
 
     true_test_cate = test.Y1 - test.Y0
-    # print("COPIED TABLES")
 
     # S-learner
     regr = RandomForestRegressor()
@@ -63,8 +67,6 @@ def train_and_evaluate(train, test, train_x_t_0_head, train_x_t_1_head):
 
     mse_s = mean_squared_error(s_learner_cate, true_test_cate)
 
-    # print("TRAINED S-LEARNER")
-
     # T-learner
     regr0 = RandomForestRegressor()
     regr1 = RandomForestRegressor()
@@ -73,7 +75,6 @@ def train_and_evaluate(train, test, train_x_t_0_head, train_x_t_1_head):
 
     t_learner_cate = regr1.predict(test_x) - regr0.predict(test_x)
     mse_t = mean_squared_error(t_learner_cate, true_test_cate)
-    # print("TRAINED T-LEARNER")
 
     # Causal forest
     cau_forest = CausalForest()
@@ -95,6 +96,18 @@ def train_and_evaluate(train, test, train_x_t_0_head, train_x_t_1_head):
 
 
 def run_test(d, mu_0, mu_1, e, n_train, n_test, reps):
+    """
+    Performs numerous training and evaluation sequences, each time on different simulated data
+    For each dataset the models are trained several times, each time on a bigger part of the train set
+    :param d: dimension of feature vector
+    :param mu_0: response function for untreated samples
+    :param mu_1: response function for treated samples
+    :param e: propensity score
+    :param n_train: size of train set
+    :param n_test: size of test set
+    :param reps: how many times the evaluation should be performed
+    :return: used training sizes and MSE results of each performed training and evaluation sequence
+    """
     t_s = [0.01, 0.03, 0.05, 0.1, 0.2, 0.5, 1.0]
     training_sizes = [int(n_train * i) for i in t_s]
     mse_s_list = [[] for _ in training_sizes]
@@ -126,6 +139,15 @@ def run_test(d, mu_0, mu_1, e, n_train, n_test, reps):
 
 
 def plot_mse(training_sizes, mse_s_list, mse_t_list, mse_forest_list, mse_knn_list):
+    """
+    Plots the averaged evolution of MSE as a function of the used training size
+    :param training_sizes: used sizes of train set
+    :param mse_s_list: MSEs of S-learner
+    :param mse_t_list: MSEs of T-learner
+    :param mse_forest_list: MSEs of causal forest
+    :param mse_knn_list: MSEs of KNN
+    :return: None, plots the graphs
+    """
     mse_s_final = list(map(lambda l: np.mean(l), mse_s_list))
     mse_t_final = list(map(lambda l: np.mean(l), mse_t_list))
     mse_forest_final = list(map(lambda l: np.mean(l), mse_forest_list))
@@ -142,6 +164,14 @@ def plot_mse(training_sizes, mse_s_list, mse_t_list, mse_forest_list, mse_knn_li
 
 
 def get_conf_intervals(mse_s_list, mse_t_list, mse_forest_list, mse_knn_list):
+    """
+    Calculates mean and standard deviation of obtained MSEs when models were trained on full train set
+    :param mse_s_list: MSEs of S-learner
+    :param mse_t_list: MSEs of T-learner
+    :param mse_forest_list: MSEs of causal forest
+    :param mse_knn_list: MSEs of KNN
+    :return: pandas DataFrame with the calculated mean and standard deviation
+    """
     mse_s_all = mse_s_list[-1]
     mse_t_all = mse_t_list[-1]
     mse_forest_all = mse_forest_list[-1]
@@ -153,6 +183,16 @@ def get_conf_intervals(mse_s_list, mse_t_list, mse_forest_list, mse_knn_list):
 
 
 def plot_gain_curves(d, mu_0, mu_1, e, n_train, n_test):
+    """
+    Simulates data, trains models, and plots gain curves for them
+    :param d: dimension of feature vector
+    :param mu_0: response function for untreated samples
+    :param mu_1: response function for treated samples
+    :param e: propensity score
+    :param n_train: size of train set
+    :param n_test: size of test set
+    :return: None, plots the graphs
+    """
     train = pd.DataFrame(simulate_data.get_training_set(d, mu_0, mu_1, e, n_train))
     test = pd.DataFrame(simulate_data.get_test_set(d, mu_0, mu_1, e, n_test))
 
